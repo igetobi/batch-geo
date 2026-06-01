@@ -1,0 +1,41 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Override the Nominatim user-agent so it reflects the deployed instance
+      NOMINATIM_USER_AGENT: "batchgeo-map-generator (contact: bruno@blackswanmedia.co)"
+      ENVIRONMENT: "production"
+      AUTH_ENABLED: "${AUTH_ENABLED:-false}"
+    volumes:
+      # SQLite database — persisted across container restarts
+      - app_data:/app/app/data
+      # Persistent Chrome profile — holds BatchGeo login session + Cloudflare cookies
+      - chrome_profile:/app/app/data/bg-profile
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  app_data:
+    driver: local
+  chrome_profile:
+    driver: local
