@@ -7,3 +7,4 @@ node_modules/
 dist/
 .playwright/
 backend/app/data/
+*.egg-info/
