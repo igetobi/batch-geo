@@ -11,6 +11,7 @@ export default function RecentMaps({ onBack }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -32,17 +33,19 @@ export default function RecentMaps({ onBack }: Props) {
     };
   }, []);
 
-  async function copyEmbed(map: SavedMap) {
-    if (!map.embed_code) return;
-    await navigator.clipboard.writeText(map.embed_code);
-    setCopiedId(map.id);
+  async function copyText(text: string, id: string) {
+    await navigator.clipboard.writeText(text);
+    setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
+  }
+
+  function pinCount(csvText: string): number {
+    // CSV has 1 header row; each subsequent non-empty line is a pin
+    return csvText.split("\n").filter((l, i) => i > 0 && l.trim()).length;
   }
 
   function formatDate(iso: string): string {
     try {
-      // The backend stores as SQLite datetime('now') — UTC, no 'Z' suffix.
-      // Append Z so the Date constructor interprets it as UTC.
       const normalized = iso.includes("T") ? iso : iso.replace(" ", "T");
       const d = new Date(normalized.endsWith("Z") ? normalized : normalized + "Z");
       return d.toLocaleDateString(undefined, {
@@ -126,86 +129,166 @@ export default function RecentMaps({ onBack }: Props) {
         {/* Map list */}
         {!loading && !error && maps.length > 0 && (
           <div className="space-y-4">
-            {maps.map((map) => (
-              <div
-                key={map.id}
-                className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <h2 className="text-sm font-semibold text-slate-900 truncate">
-                      {map.title}
-                    </h2>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      {formatDate(map.created_at)}
-                      <span className="mx-1.5 text-slate-300">·</span>
-                      <span className="font-mono">{map.slug}</span>
-                    </p>
-                  </div>
-                  {map.map_url && (
-                    <a
-                      href={map.map_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-shrink-0 text-xs flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-indigo-600 font-medium transition"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                      </svg>
-                      View map
-                    </a>
-                  )}
-                </div>
+            {maps.map((map) => {
+              const pins = pinCount(map.csv_text);
+              const isPublished = !!map.map_url;
+              const isExpanded = expandedId === map.id;
 
-                {map.map_url && (
-                  <div className="mt-3 pt-3 border-t border-slate-100">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-slate-500 truncate flex-1 font-mono">
-                        {map.map_url}
-                      </span>
-                    </div>
-                  </div>
-                )}
+              return (
+                <div
+                  key={map.id}
+                  className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden"
+                >
+                  {/* Top row */}
+                  <div className="p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h2 className="text-sm font-semibold text-slate-900 truncate">
+                            {map.title}
+                          </h2>
+                          {/* Status badge */}
+                          {isPublished ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200 flex-shrink-0">
+                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                              Published
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 flex-shrink-0">
+                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                              </svg>
+                              Manual finish
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-400 mt-1">
+                          {formatDate(map.created_at)}
+                          <span className="mx-1.5 text-slate-300">·</span>
+                          <span>{pins} pins</span>
+                          <span className="mx-1.5 text-slate-300">·</span>
+                          <span className="font-mono">{map.slug}</span>
+                        </p>
+                      </div>
 
-                {map.embed_code && (
-                  <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
-                    <span className="text-xs text-slate-400">Embed code available</span>
-                    <button
-                      type="button"
-                      onClick={() => copyEmbed(map)}
-                      className="text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition flex-shrink-0"
-                    >
-                      {copiedId === map.id ? (
-                        <>
-                          <svg className="w-3.5 h-3.5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                          Copied!
-                        </>
-                      ) : (
-                        <>
+                      {/* View map link */}
+                      {map.map_url && (
+                        <a
+                          href={map.map_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-shrink-0 text-xs flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-indigo-600 font-medium transition"
+                        >
                           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                           </svg>
-                          Copy embed
-                        </>
+                          View map
+                        </a>
                       )}
-                    </button>
-                  </div>
-                )}
+                    </div>
 
-                {!map.map_url && !map.embed_code && (
-                  <div className="mt-3 pt-3 border-t border-slate-100">
-                    <span className="text-xs text-slate-400 italic">
-                      Published manually — no URL recorded
-                    </span>
+                    {/* Map URL row */}
+                    {map.map_url && (
+                      <div className="mt-3 pt-3 border-t border-slate-100">
+                        <span className="text-xs text-slate-500 truncate block font-mono">
+                          {map.map_url}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            ))}
+
+                  {/* Description preview */}
+                  {map.description && (
+                    <div className="px-5 pb-4">
+                      <p
+                        className={`text-xs text-slate-600 leading-relaxed ${
+                          isExpanded ? "" : "line-clamp-2"
+                        }`}
+                      >
+                        {map.description}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setExpandedId(isExpanded ? null : map.id)
+                        }
+                        className="mt-1 text-xs text-indigo-500 hover:text-indigo-700 transition"
+                      >
+                        {isExpanded ? "Show less" : "Show full description"}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Action bar */}
+                  <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center gap-2 flex-wrap">
+                    {/* Copy embed */}
+                    {map.embed_code && (
+                      <CopyButton
+                        label="Copy embed code"
+                        copiedLabel="Copied!"
+                        isCopied={copiedId === `embed-${map.id}`}
+                        onClick={() =>
+                          copyText(map.embed_code!, `embed-${map.id}`)
+                        }
+                      />
+                    )}
+
+                    {/* Copy CSV — always available */}
+                    <CopyButton
+                      label="Copy CSV"
+                      copiedLabel="Copied!"
+                      isCopied={copiedId === `csv-${map.id}`}
+                      onClick={() => copyText(map.csv_text, `csv-${map.id}`)}
+                    />
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Sub-components
+// ---------------------------------------------------------------------------
+
+function CopyButton({
+  label,
+  copiedLabel,
+  isCopied,
+  onClick,
+}: {
+  label: string;
+  copiedLabel: string;
+  isCopied: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 transition flex-shrink-0"
+    >
+      {isCopied ? (
+        <>
+          <svg className="w-3.5 h-3.5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+          {copiedLabel}
+        </>
+      ) : (
+        <>
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          </svg>
+          {label}
+        </>
+      )}
+    </button>
   );
 }

@@ -78,6 +78,8 @@ export interface SavedMap {
   slug: string;
   map_url: string | null;
   embed_code: string | null;
+  csv_text: string;
+  description: string;
   created_at: string;
 }
 
