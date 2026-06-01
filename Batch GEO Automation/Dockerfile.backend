@@ -24,7 +24,7 @@ COPY backend/ .
 
 # Install xvfb so the headful Playwright browser has a virtual display,
 # then install Playwright's Chromium with its OS dependencies.
-RUN apt-get update && apt-get install -y --no-install-recommends xvfb \
+RUN apt-get update && apt-get install -y --no-install-recommends xvfb xauth \
     && rm -rf /var/lib/apt/lists/* \
     && playwright install --with-deps chromium
 
