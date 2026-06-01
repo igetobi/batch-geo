@@ -1,0 +1,325 @@
+---
+name: quality-check
+description: >
+  Output quality review. Use after any tool, pipeline, or process generates output —
+  content, code, HTML, reports, emails, designs, data, automation results, API responses,
+  documents, or any artifact. Forces Claude Code to actually consume its own output as a
+  human would and judge it honestly. Triggers on: "quality check", "is this actually good",
+  "review the output", "check what we generated", "does this look right", "would you
+  publish this", "is this ready", or any situation where something was produced and nobody
+  verified the result is actually good. Also trigger automatically after any generation or
+  build pipeline completes. Running code is not the finish line — quality is.
+---
+
+# Quality Check — Output Review
+
+The pipeline ran. Output was generated. **That means nothing.**
+
+The only question: **Is the output actually good enough to use?**
+
+Not "did the code execute." Not "did the score improve." Not "did it produce
+a file." Would a human look at this and say "yes, this is ready"?
+
+---
+
+## Step 0: Scope & Standard
+
+1. **What was generated?** Content, code, HTML, report, email, design, data,
+   API response, automation result, workflow output?
+2. **What's the standard?** What does "good" look like?
+   - Pull up reference examples if they exist (approved previous output,
+     competitor examples, spec docs, style guides, mockups)
+   - If no reference exists, define "good" explicitly before reviewing —
+     otherwise you'll evaluate against a vague feeling
+3. **Who receives this?** Client, end user, internal team, public audience?
+4. **Is this a one-off or does it run repeatedly?** (determines if Batch
+   Test applies)
+
+---
+
+## Step 1: Actually Consume the Output
+
+**This is the step Claude Code always skips.** Do NOT skip it.
+
+### For text/content:
+- Read the FULL output. All of it. Not a summary.
+- Read every heading as a standalone phrase. Grammatically sensible?
+- Read the first sentence of every section. Specific or filler?
+- Read the last section. Truncated or cut off?
+- Read for flow — does one section connect to the next logically?
+
+### For code/HTML/templates:
+- Render it if possible. Look at it visually.
+- Read key functions/components. Do they do what they claim?
+- Check output size — reasonable for what it does?
+- Check for hardcoded values, inline styles, duplicate logic
+
+### For data/reports/analytics:
+- Look at actual values. Plausible?
+- Check totals, averages, counts. Do they add up?
+- Look for contradictions or impossible values
+- Does the data tell a coherent story?
+
+### For emails/communications:
+- Read as the recipient would. First reaction?
+- Tone right? Would you actually send this?
+- Does it accomplish its goal?
+- Is the ask/CTA clear?
+
+### For design/visual:
+- Look at actual size. Professional?
+- Check different screen sizes if applicable
+- Would you show this to a client?
+
+### For automation/workflow/API output:
+- Does the output match expected format and structure?
+- Are all expected fields populated with sensible values?
+- Do the results make sense for the input that triggered them?
+- Any silent failures disguised as empty or default values?
+
+**Write your honest first impression** — gut reaction before analysis.
+Good enough? Mediocre? Embarrassing?
+
+Append to `QUALITY_CHECK_NOTES.md`.
+
+---
+
+## Step 2: Compare Against the Standard
+
+If you pulled up a reference example in Step 0, compare now:
+
+- **Side by side**: Put the generated output next to the reference. Where
+  does it match? Where does it fall short?
+- **What does the reference do that ours doesn't?** Specificity? Structure?
+  Tone? Detail level? Visual quality?
+- **What does ours do that the reference doesn't?** Sometimes the output
+  is different but not worse — identify genuine improvements vs gaps.
+
+If no reference exists, skip this step but note that there's no quality
+benchmark — the user should provide or approve one for future checks.
+
+Append to `QUALITY_CHECK_NOTES.md`.
+
+---
+
+## Step 3: The Seven Tests
+
+Score each as PASS / FAIL / PARTIAL.
+
+### Test 1: The Publish Test
+"Would I publish/send/ship this right now, with my name on it?"
+If no — what specifically would need to change?
+
+### Test 2: The Sense Test
+Does every piece make logical and grammatical sense?
+- No gibberish headings
+- No broken sentences or fragments
+- No contradictions within the output
+- No placeholder text or template artifacts left in
+- No garbled variable interpolation or failed string formatting
+
+### Test 3: The Substance Test
+Is this saying something real, or is it filler?
+- Flag sentences that could apply to literally anything
+  ("We provide high-quality solutions" = filler)
+- Flag sections that restate the previous section differently
+- Is there specific, concrete information? Numbers, examples, details?
+- Does it demonstrate knowledge or read like it was generated by
+  someone with no context?
+
+### Test 4: The Spec Test
+Does the output match what was asked for?
+- Correct format/structure?
+- Within size/length/count requirements?
+- All required sections/components/fields present?
+- Nothing missing, nothing extra?
+- Was anything truncated or cut off?
+
+### Test 5: The Repetition Test
+Is it saying the same thing multiple times?
+- Same keyword/phrase appearing unnaturally often
+- Same point in different sections with different wording
+- Structural repetition (every section follows identical pattern)
+- Same data presented multiple ways without adding insight
+
+### Test 6: The Audience Test
+Is this appropriate for who receives it?
+- Tone matches audience
+- Technical level matches reader's expertise
+- Length is appropriate for the context
+- Format is what the audience expects
+
+### Test 7: The Consistency Test
+For tools that generate output repeatedly — is quality reliable?
+- Generate 2-3 additional samples with different inputs
+- Score each sample on Tests 1-6
+- If quality varies: identify what inputs produce good vs bad output.
+  Is it the input data? Specific edge cases? Random variance?
+- What percentage of outputs would be publishable without editing?
+
+Skip for one-off outputs.
+
+**Scorecard:**
+```
+Test 1 (Publish):      [PASS/FAIL/PARTIAL]
+Test 2 (Sense):        [PASS/FAIL/PARTIAL]
+Test 3 (Substance):    [PASS/FAIL/PARTIAL]
+Test 4 (Spec):         [PASS/FAIL/PARTIAL]
+Test 5 (Repetition):   [PASS/FAIL/PARTIAL]
+Test 6 (Audience):     [PASS/FAIL/PARTIAL]
+Test 7 (Consistency):  [PASS/FAIL/PARTIAL/SKIPPED]
+Overall:               [READY / NEEDS WORK / FAILED]
+```
+
+- **READY** = all pass → ship it
+- **NEEDS WORK** = some partial → fixable without rethinking
+- **FAILED** = multiple fails → approach may need to change
+
+Append to `QUALITY_CHECK_NOTES.md`.
+
+---
+
+## Step 4: Show the Problems
+
+For every FAIL or PARTIAL — show real examples, not descriptions.
+
+```
+### [Test Name] — FAIL
+
+**Example 1:**
+Actual:   [paste the exact bad output]
+Problem:  [what's wrong — be specific and direct]
+Should be: [concrete example of what good looks like]
+
+**Example 2:**
+Actual:   [paste another instance]
+Problem:  [what's wrong]
+Should be: [the fix]
+
+This pattern appears [N] times throughout the output.
+```
+
+**Rules:**
+1. Real examples from the output, not hypothetical
+2. Every problem gets a "should be" — don't just criticize
+3. Same problem 10 times? Show 2-3 examples, state the count
+4. Be direct: "The H1 is keyword-stuffed gibberish" not "could be improved"
+
+Append to `QUALITY_CHECK_NOTES.md`.
+
+---
+
+## Step 5: Diagnose Root Causes
+
+For each problem pattern, identify why it happened:
+
+| Root Cause | What It Means | Fix Path |
+|---|---|---|
+| Prompt issue | Instructions that generate this are flawed | Tweak prompt — cheap, fast |
+| Missing validation | No check exists for this error type | Add validation step to pipeline |
+| Missing reference | Generator has no example of "good" | Provide reference examples |
+| Missing constraints | No rules preventing bad patterns | Add to CLAUDE.md or config |
+| Tool limitation | Model can't reliably produce this quality | Change model or approach |
+| Spec gap | Requirements didn't specify clearly enough | Tighten the spec |
+| Truncation | Output cut off by token/length limits | Adjust limits or chunk output |
+
+This diagnosis determines whether you need:
+- A quick fix (prompt tweak, add validation)
+- A config change (update CLAUDE.md, add constraints)
+- A full rethink → run `/solve-problem`
+
+---
+
+## Step 6: Verdict & Next Steps
+
+```
+# Quality Check: [What was reviewed]
+## Date: [date]
+## Verdict: [READY / NEEDS WORK / FAILED]
+
+## Scorecard
+[7-test scores from Step 3]
+
+## Top Issues (with examples)
+1. [Biggest problem]
+2. [Second]
+3. [Third]
+
+## Root Causes
+- [Pattern]: [cause] → [fix path]
+
+## Recommended Fixes
+1. [Fix] — Effort: [Low/Med/High]
+2. [Fix] — Effort: [Low/Med/High]
+3. [Fix] — Effort: [Low/Med/High]
+```
+
+### What to do next based on verdict:
+
+**READY** → Ship it. No further action.
+
+**NEEDS WORK** → Offer to fix. For fixes that involve:
+- Changing code, validation, or pipeline logic → execute using `/deep-debug`
+  rules (one fix at a time, verify after each)
+- Changing prompts or config → edit directly and re-run the generation to
+  verify the fix worked
+- After fixing, **re-run `/quality-check` quick mode** on the new output
+  to confirm the fix actually improved things
+
+**FAILED** → The output quality problem is likely upstream. Run
+`/solve-problem` to rethink the approach before spending more time on fixes
+that won't solve the root issue.
+
+---
+
+## Quick Mode
+
+For fast checks on small or simple outputs:
+
+1. Read the full output
+2. Five questions:
+   - Would I publish this with my name on it?
+   - Does every sentence/element make sense?
+   - Does it say something real or is it filler?
+   - Does it match the spec?
+   - If this runs repeatedly, would the next output be just as good?
+3. Verdict: READY / NEEDS WORK / FAILED
+4. If not READY, list the specific problems
+
+---
+
+## The Honesty Rule
+
+This overrides everything:
+
+**Do not celebrate that the pipeline ran when the output is bad.**
+
+Do not report metrics when the content is broken. Do not say "improved"
+when the output is unpublishable. Do not call something "progress" when
+the result would embarrass the user in front of their client.
+
+Say the hard thing. That's what this skill is for.
+
+---
+
+## Output Files
+
+- **`QUALITY_CHECK_NOTES.md`**: Running analysis, written incrementally
+- Final verdict: presented in conversation
+
+Write to project root, or working directory if read-only.
+
+---
+
+## Progress Tracking
+
+```
+[x] Step 0: Scope and standard defined
+[x] Step 1: Output fully consumed
+[x] Step 2: Compared against reference (if available)
+[x] Step 3: Seven tests scored
+[x] Step 4: Problems documented with examples
+[x] Step 5: Root causes diagnosed
+[ ] Step 6: Verdict presented, next steps identified
+[ ] Fixes applied → re-checked with quick mode
+```
