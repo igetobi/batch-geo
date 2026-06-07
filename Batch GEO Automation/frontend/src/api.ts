@@ -14,6 +14,11 @@ export interface ClientProfile {
   website: string;
   city: string;
   state: string;
+  gmb_cid?: string | null;
+  image_urls?: string[];
+  social_urls?: string[];
+  video_iframes?: Record<string, string>;
+  // legacy fields
   logo_url?: string | null;
   social_url?: string | null;
   iframe_embed_html?: string | null;

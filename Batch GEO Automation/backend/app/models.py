@@ -12,6 +12,15 @@ class ClientProfile(BaseModel):
     website: HttpUrl
     city: str = Field(..., max_length=100)
     state: str = Field(..., max_length=100)
+    # GMB CID — used to build Google Maps search URLs in the URL column
+    gmb_cid: str | None = Field(None, max_length=30)
+    # Up to 5 GMB image URLs cycled across pins
+    image_urls: list[str] = Field(default_factory=list, max_length=5)
+    # Up to 50 citation/social URLs — one assigned per pin (cycled if fewer than pin count)
+    social_urls: list[str] = Field(default_factory=list, max_length=50)
+    # Named iframe embeds stacked into the Video column
+    video_iframes: dict[str, str] = Field(default_factory=dict)
+    # Legacy single fields — kept for backwards compatibility
     logo_url: HttpUrl | None = None
     social_url: HttpUrl | None = None
     iframe_embed_html: str | None = Field(None, max_length=2000)

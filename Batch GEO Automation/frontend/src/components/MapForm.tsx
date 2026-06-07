@@ -101,7 +101,17 @@ export default function MapForm({ onResult, onShowRecent }: Props) {
   const [website, setWebsite] = useState("https://");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
-  const [iframeEmbedHtml, setIframeEmbedHtml] = useState("");
+  // New entity-stacking fields
+  const [gmbCid, setGmbCid] = useState("");
+  const [imageUrls, setImageUrls] = useState<string[]>(["", "", "", "", ""]);
+  const [socialUrlsText, setSocialUrlsText] = useState("");
+  const [videoIframes, setVideoIframes] = useState<Record<string, string>>({
+    youtube: "",
+    my_maps: "",
+    sheets: "",
+    docs: "",
+    pearltrees: "",
+  });
 
   // Map fields
   const [niche, setNiche] = useState("");
@@ -201,6 +211,15 @@ export default function MapForm({ onResult, onShowRecent }: Props) {
     }
     setFieldErrors({});
 
+    const parsedImageUrls = imageUrls.filter((u) => u.trim());
+    const parsedSocialUrls = socialUrlsText
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
+    const parsedVideoIframes = Object.fromEntries(
+      Object.entries(videoIframes).filter(([, v]) => v.trim())
+    );
+
     const request: MapRequest = {
       client: {
         business_name: businessName,
@@ -209,7 +228,10 @@ export default function MapForm({ onResult, onShowRecent }: Props) {
         website,
         city,
         state,
-        iframe_embed_html: iframeEmbedHtml || null,
+        gmb_cid: gmbCid.trim() || null,
+        image_urls: parsedImageUrls,
+        social_urls: parsedSocialUrls,
+        video_iframes: parsedVideoIframes,
       },
       services,
       landmarks,
@@ -323,17 +345,89 @@ export default function MapForm({ onResult, onShowRecent }: Props) {
               </Field>
             </div>
             <Field
-              label="Video / Embed HTML"
-              hint='Optional. Paste a YouTube or other <iframe> embed code. This fills the "Video" column in BatchGeo.'
+              label="GMB CID (Google My Business ID)"
+              hint='Found in your Google Maps URL as "cid=XXXXXXXXX". Used to build keyword-grid Google Maps search URLs.'
             >
-              <textarea
-                rows={2}
-                value={iframeEmbedHtml}
-                onChange={(e) => setIframeEmbedHtml(e.target.value)}
-                placeholder='<iframe src="https://youtube.com/embed/..." ...></iframe>'
-                className={`${inputCls} resize-none`}
+              <input
+                type="text"
+                value={gmbCid}
+                onChange={(e) => setGmbCid(e.target.value)}
+                placeholder="e.g. 1234567890123456789"
+                className={inputCls}
               />
             </Field>
+          </Section>
+
+          {/* ── Section: GMB Images ── */}
+          <Section title="GMB Image URLs (optional)">
+            <p className="text-xs text-slate-500 -mt-1">
+              Paste up to 5 Google My Business photo URLs. The app will cycle them across all pins in the Image column.
+            </p>
+            {imageUrls.map((url, i) => (
+              <Field key={i} label={`Image ${i + 1}`}>
+                <input
+                  type="url"
+                  value={url}
+                  onChange={(e) => {
+                    const next = [...imageUrls];
+                    next[i] = e.target.value;
+                    setImageUrls(next);
+                  }}
+                  placeholder="https://lh3.googleusercontent.com/..."
+                  className={inputCls}
+                />
+              </Field>
+            ))}
+          </Section>
+
+          {/* ── Section: Social Citations ── */}
+          <Section title="Social Citation URLs (optional)">
+            <Field
+              label="Citation URLs"
+              hint="Paste one URL per line — up to 50. Each pin gets one citation URL in the Social column (cycled if fewer than pin count)."
+            >
+              <textarea
+                rows={6}
+                value={socialUrlsText}
+                onChange={(e) => setSocialUrlsText(e.target.value)}
+                placeholder={"https://yelp.com/biz/example\nhttps://facebook.com/example\nhttps://yellowpages.com/..."}
+                className={`${inputCls} resize-none font-mono text-xs`}
+              />
+              <p className="mt-1.5 text-xs text-slate-400">
+                {socialUrlsText.split("\n").filter((l) => l.trim()).length} / 50 URLs entered
+              </p>
+            </Field>
+          </Section>
+
+          {/* ── Section: Entity Iframes ── */}
+          <Section title="Entity Stack Iframes (optional)">
+            <p className="text-xs text-slate-500 -mt-1">
+              Paste embed codes for each entity. All filled iframes are stacked into the Video column for every pin.
+            </p>
+            {(
+              [
+                ["youtube", "YouTube Embed"],
+                ["my_maps", "Google My Maps Embed"],
+                ["sheets", "Google Sheets Embed"],
+                ["docs", "Google Docs Embed"],
+                ["pearltrees", "Pearltrees Embed"],
+              ] as [string, string][]
+            ).map(([key, label]) => (
+              <Field
+                key={key}
+                label={label}
+              >
+                <textarea
+                  rows={2}
+                  value={videoIframes[key]}
+                  onChange={(e) =>
+                    setVideoIframes((prev) => ({ ...prev, [key]: e.target.value }))
+                  }
+                  placeholder={`<iframe src="..." ...></iframe>`}
+                  className={`${inputCls} resize-none font-mono text-xs`}
+                />
+              </Field>
+            ))}
           </Section>
 
           {/* ── Section: Services ── */}
