@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
+import re
 import time
+import urllib.parse
+import urllib.request
 from collections import defaultdict
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -153,6 +158,84 @@ def job_status(
     if row.get("payload"):
         row["payload"] = json.loads(row["payload"])
     return row
+
+
+class FetchCitationsRequest(BaseModel):
+    sheet_url: str
+
+
+class FetchCitationsResponse(BaseModel):
+    gmb_cid: str | None
+    citations: list[str]
+
+
+def _sheet_id_from_url(url: str) -> str:
+    """Extract the spreadsheet ID from a Google Sheets URL."""
+    m = re.search(r"/spreadsheets/d/([a-zA-Z0-9_-]+)", url)
+    if not m:
+        raise ValueError("Not a valid Google Sheets URL")
+    return m.group(1)
+
+
+def _extract_cid(value: str) -> str | None:
+    """Return the numeric CID from a google.com/maps?cid=... URL, or None."""
+    m = re.search(r"[?&]cid=(\d+)", value)
+    return m.group(1) if m else None
+
+
+@app.post("/api/fetch-citations", response_model=FetchCitationsResponse)
+def fetch_citations(
+    body: FetchCitationsRequest,
+    _user: Annotated[str, Depends(require_token)],
+) -> FetchCitationsResponse:
+    """Fetch the first tab of a Google Sheet and extract citations + optional GMB CID."""
+    try:
+        sheet_id = _sheet_id_from_url(body.sheet_url)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    export_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
+
+    try:
+        req = urllib.request.Request(
+            export_url,
+            headers={"User-Agent": "BatchGeoAutomation/1.0"},
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            raw = resp.read().decode("utf-8", errors="replace")
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Could not fetch sheet: {exc}",
+        ) from exc
+
+    # Parse single-column CSV — each row is one cell from column A
+    rows: list[str] = []
+    reader = csv.reader(io.StringIO(raw))
+    for row in reader:
+        rows.append(row[0].strip() if row else "")
+
+    # Rows 0–3 (1-indexed: 1–4) are business info — skip them.
+    # Row 4 (0-indexed) may be a Google Maps CID URL or empty.
+    gmb_cid: str | None = None
+    citations_start = 5  # default: citations start at row 6 (0-indexed 5)
+
+    if len(rows) >= 5:
+        possible_cid_row = rows[4]
+        cid = _extract_cid(possible_cid_row)
+        if cid:
+            gmb_cid = cid
+            citations_start = 5
+        elif possible_cid_row == "" or possible_cid_row.lower().startswith("google map"):
+            # Empty or label row — citations start at row 6
+            citations_start = 5
+        else:
+            # Row 5 is already a citation URL
+            citations_start = 4
+
+    citations = [r for r in rows[citations_start:] if r.startswith("http")]
+
+    return FetchCitationsResponse(gmb_cid=gmb_cid, citations=citations)
 
 
 @app.get("/api/maps")

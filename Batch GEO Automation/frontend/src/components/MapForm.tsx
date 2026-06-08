@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import type { MapRequest, MapResult } from "../api";
-import { generateMap } from "../api";
+import { fetchCitationsFromSheet, generateMap } from "../api";
 
 // ---------------------------------------------------------------------------
 // Niche presets
@@ -122,6 +122,31 @@ export default function MapForm({ onResult, onShowRecent }: Props) {
   const [mapTitle, setMapTitle] = useState("");
   const [pinCount, setPinCount] = useState(50);
   const [seed, setSeed] = useState("");
+
+  // Citation sheet import
+  const [citationSheetUrl, setCitationSheetUrl] = useState("");
+  const [fetchingSheet, setFetchingSheet] = useState(false);
+  const [sheetFetchError, setSheetFetchError] = useState<string | null>(null);
+  const [sheetFetchSuccess, setSheetFetchSuccess] = useState(false);
+
+  async function handleFetchSheet() {
+    if (!citationSheetUrl.trim()) return;
+    setFetchingSheet(true);
+    setSheetFetchError(null);
+    setSheetFetchSuccess(false);
+    try {
+      const result = await fetchCitationsFromSheet(citationSheetUrl.trim());
+      if (result.gmb_cid) setGmbCid(result.gmb_cid);
+      if (result.citations.length > 0) {
+        setSocialUrlsText(result.citations.join("\n"));
+      }
+      setSheetFetchSuccess(true);
+    } catch (err) {
+      setSheetFetchError(err instanceof Error ? err.message : "Failed to fetch sheet");
+    } finally {
+      setFetchingSheet(false);
+    }
+  }
 
   const [error, setError] = useState<string | null>(null);
   // item 5: per-field inline errors
@@ -378,6 +403,45 @@ export default function MapForm({ onResult, onShowRecent }: Props) {
                 />
               </Field>
             ))}
+          </Section>
+
+          {/* ── Section: Citation Sheet Import ── */}
+          <Section title="Import Citations from Google Sheet">
+            <p className="text-xs text-slate-500 -mt-1">
+              Paste the link to the client's Google Sheet. The app will pull the citation URLs and GMB CID automatically.
+              The sheet must be shared with "Anyone with the link can view."
+            </p>
+            <Field label="Google Sheet URL">
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  value={citationSheetUrl}
+                  onChange={(e) => {
+                    setCitationSheetUrl(e.target.value);
+                    setSheetFetchError(null);
+                    setSheetFetchSuccess(false);
+                  }}
+                  placeholder="https://docs.google.com/spreadsheets/d/..."
+                  className={`${inputCls} flex-1`}
+                />
+                <button
+                  type="button"
+                  onClick={handleFetchSheet}
+                  disabled={fetchingSheet || !citationSheetUrl.trim()}
+                  className="px-4 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-sm font-medium transition whitespace-nowrap"
+                >
+                  {fetchingSheet ? "Fetching…" : "Fetch"}
+                </button>
+              </div>
+              {sheetFetchError && (
+                <p className="mt-1.5 text-xs text-red-600 font-medium">{sheetFetchError}</p>
+              )}
+              {sheetFetchSuccess && (
+                <p className="mt-1.5 text-xs text-green-600 font-medium">
+                  Citations imported successfully{gmbCid ? ` — GMB CID auto-filled: ${gmbCid}` : ""}.
+                </p>
+              )}
+            </Field>
           </Section>
 
           {/* ── Section: Social Citations ── */}

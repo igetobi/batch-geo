@@ -203,6 +203,20 @@ export async function listMaps(): Promise<SavedMap[]> {
   return apiFetch<SavedMap[]>("/api/maps");
 }
 
+export interface FetchCitationsResult {
+  gmb_cid: string | null;
+  citations: string[];
+}
+
+export async function fetchCitationsFromSheet(
+  sheet_url: string
+): Promise<FetchCitationsResult> {
+  return apiFetch<FetchCitationsResult>("/api/fetch-citations", {
+    method: "POST",
+    body: JSON.stringify({ sheet_url }),
+  });
+}
+
 export function pollJobUntilDone(
   jobId: string,
   onUpdate: (status: JobStatus) => void,
