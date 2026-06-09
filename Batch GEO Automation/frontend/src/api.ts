@@ -217,6 +217,40 @@ export async function fetchCitationsFromSheet(
   });
 }
 
+export function downloadCsv(csvText: string, filename: string): void {
+  const blob = new Blob([csvText], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${filename}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export async function downloadXlsx(csvText: string, filename: string): Promise<void> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  const token = sessionStorage.getItem("bgmap_token");
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const response = await fetch(`${BASE_URL}/api/download-xlsx`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ csv_text: csvText, filename }),
+  });
+
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${filename}.xlsx`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export function pollJobUntilDone(
   jobId: string,
   onUpdate: (status: JobStatus) => void,

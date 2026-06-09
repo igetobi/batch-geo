@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { JobStatus, MapResult, MapRequest } from "../api";
-import { publishMap, pollJobUntilDone } from "../api";
+import { publishMap, pollJobUntilDone, downloadCsv, downloadXlsx } from "../api";
 
 interface Props {
   status: JobStatus;
@@ -22,9 +22,25 @@ export default function ResultPanel({
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [copiedEmbed, setCopiedEmbed] = useState(false);
   const [copiedCsv, setCopiedCsv] = useState(false);
+  const [xlsxLoading, setXlsxLoading] = useState(false);
   // item 7: retry state
   const [retrying, setRetrying] = useState(false);
   const [retryError, setRetryError] = useState<string | null>(null);
+
+  const csvFilename = mapRequest
+    ? `${mapRequest.map_slug || "batchgeo-map"}`
+    : "batchgeo-map";
+
+  async function handleDownloadXlsx(csvText: string) {
+    setXlsxLoading(true);
+    try {
+      await downloadXlsx(csvText, csvFilename);
+    } catch {
+      // silently ignore download errors
+    } finally {
+      setXlsxLoading(false);
+    }
+  }
 
   async function copy(
     text: string,
@@ -184,19 +200,40 @@ export default function ResultPanel({
               </ol>
             </div>
 
-            {/* CSV copy box */}
+            {/* CSV copy + download box */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                 <h2 className="text-sm font-semibold text-slate-800">
                   Spreadsheet Data (CSV)
                 </h2>
-                <CopyButton
-                  copied={copiedCsv}
-                  onClick={() =>
-                    copy(status.payload!.csv_text, setCopiedCsv)
-                  }
-                  label="Copy all"
-                />
+                <div className="flex items-center gap-2 flex-wrap">
+                  <CopyButton
+                    copied={copiedCsv}
+                    onClick={() => copy(status.payload!.csv_text, setCopiedCsv)}
+                    label="Copy"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => downloadCsv(status.payload!.csv_text, csvFilename)}
+                    className="text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Download CSV
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadXlsx(status.payload!.csv_text)}
+                    disabled={xlsxLoading}
+                    className="text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-green-200 bg-green-50 hover:bg-green-100 text-green-700 disabled:opacity-50 transition"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    {xlsxLoading ? "Preparing…" : "Download XLSX"}
+                  </button>
+                </div>
               </div>
               <textarea
                 readOnly
@@ -204,9 +241,6 @@ export default function ResultPanel({
                 rows={10}
                 className="w-full text-xs text-slate-700 bg-slate-50 rounded-lg p-4 border border-slate-200 font-mono resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
-              <p className="mt-2 text-xs text-slate-500">
-                Select all and copy, or use the button above.
-              </p>
             </div>
 
             {/* item 7: Retry automatic publish */}

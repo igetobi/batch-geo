@@ -14,7 +14,9 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated, Any
 
+import openpyxl
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.auth import issue_token, require_token, verify_login
@@ -181,6 +183,37 @@ def _extract_cid(value: str) -> str | None:
     """Return the numeric CID from a google.com/maps?cid=... URL, or None."""
     m = re.search(r"[?&]cid=(\d+)", value)
     return m.group(1) if m else None
+
+
+class DownloadXlsxRequest(BaseModel):
+    csv_text: str
+    filename: str = "batchgeo-map"
+
+
+@app.post("/api/download-xlsx")
+def download_xlsx(
+    body: DownloadXlsxRequest,
+    _user: Annotated[str, Depends(require_token)],
+) -> StreamingResponse:
+    """Convert a CSV string to an XLSX file and return it as a download."""
+    reader = csv.reader(io.StringIO(body.csv_text))
+    rows = list(reader)
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    for row in rows:
+        ws.append(row)
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    safe_name = re.sub(r"[^\w\-]", "-", body.filename) or "batchgeo-map"
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{safe_name}.xlsx"'},
+    )
 
 
 @app.post("/api/fetch-citations", response_model=FetchCitationsResponse)

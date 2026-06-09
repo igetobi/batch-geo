@@ -11,6 +11,7 @@ dependencies = [
   "anthropic>=0.40",
   "playwright>=1.48",
   "python-multipart>=0.0.12",
+  "openpyxl>=3.1",
 ]
 
 [project.optional-dependencies]

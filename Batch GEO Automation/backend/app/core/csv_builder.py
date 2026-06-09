@@ -12,7 +12,7 @@ HEADER = [
     "Group", "URL", "Email", "Image", "Social", "Latitude", "Longitude", "Video",
 ]
 
-# Labels shown for each iframe type (order matters — they stack top-to-bottom)
+# Order in which iframe types are cycled across pins (one per pin, then repeats)
 _IFRAME_ORDER = ["youtube", "my_maps", "sheets", "docs", "pearltrees"]
 
 
@@ -47,19 +47,28 @@ def _social(client: ClientProfile, index: int) -> str:
     return str(client.social_url) if client.social_url else ""
 
 
-def _video(client: ClientProfile) -> str:
-    """Concatenate all iframe embeds into one Video cell value."""
+def _build_iframe_cycle(client: ClientProfile) -> list[str]:
+    """Return an ordered list of non-empty iframe values to cycle across pins."""
     if client.video_iframes:
-        parts = []
+        cycle = []
         for key in _IFRAME_ORDER:
-            if key in client.video_iframes and client.video_iframes[key].strip():
-                parts.append(client.video_iframes[key].strip())
-        # Include any keys not in the ordered list
+            val = client.video_iframes.get(key, "").strip()
+            if val:
+                cycle.append(val)
         for key, val in client.video_iframes.items():
             if key not in _IFRAME_ORDER and val.strip():
-                parts.append(val.strip())
-        return "\n".join(parts)
-    return client.iframe_embed_html or ""
+                cycle.append(val.strip())
+        return cycle
+    if client.iframe_embed_html:
+        return [client.iframe_embed_html]
+    return []
+
+
+def _video(iframe_cycle: list[str], index: int) -> str:
+    """Return the iframe for this pin (one per pin, cycling through the list)."""
+    if not iframe_cycle:
+        return ""
+    return iframe_cycle[index % len(iframe_cycle)]
 
 
 def build_csv(pins: list[GeneratedPin], client: ClientProfile) -> str:
@@ -68,7 +77,7 @@ def build_csv(pins: list[GeneratedPin], client: ClientProfile) -> str:
     writer = csv.writer(output, quoting=csv.QUOTE_MINIMAL)
     writer.writerow(HEADER)
 
-    video_cell = _video(client)
+    iframe_cycle = _build_iframe_cycle(client)
 
     for i, pin in enumerate(pins):
         address = f"{pin.latitude},{pin.longitude}"
@@ -86,7 +95,7 @@ def build_csv(pins: list[GeneratedPin], client: ClientProfile) -> str:
             _social(client, i),             # Social ← per-pin citation URL
             pin.latitude,                   # Latitude
             pin.longitude,                  # Longitude
-            video_cell,                     # Video ← stacked iframes
+            _video(iframe_cycle, i),        # Video ← cycled one iframe per pin
         ]
         writer.writerow(row)
 
