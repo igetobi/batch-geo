@@ -233,7 +233,7 @@ def fetch_citations(
             # Row 5 is already a citation URL
             citations_start = 4
 
-    citations = [r for r in rows[citations_start:] if r.startswith("http")]
+    citations = [r for r in rows[citations_start:] if r.startswith("http")][:50]
 
     return FetchCitationsResponse(gmb_cid=gmb_cid, citations=citations)
 
