@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { SavedMap } from "../api";
-import { listMaps } from "../api";
+import { listMaps, downloadCsv, downloadXlsx } from "../api";
 
 interface Props {
   onBack: () => void;
@@ -12,6 +12,7 @@ export default function RecentMaps({ onBack }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [xlsxLoadingId, setXlsxLoadingId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -235,13 +236,42 @@ export default function RecentMaps({ onBack }: Props) {
                       />
                     )}
 
-                    {/* Copy CSV — always available */}
+                    {/* Copy CSV */}
                     <CopyButton
                       label="Copy CSV"
                       copiedLabel="Copied!"
                       isCopied={copiedId === `csv-${map.id}`}
                       onClick={() => copyText(map.csv_text, `csv-${map.id}`)}
                     />
+
+                    {/* Download CSV */}
+                    <button
+                      type="button"
+                      onClick={() => downloadCsv(map.csv_text, map.slug)}
+                      className="text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 transition flex-shrink-0"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                      Download CSV
+                    </button>
+
+                    {/* Download XLSX */}
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        setXlsxLoadingId(map.id);
+                        try { await downloadXlsx(map.csv_text, map.slug); } catch { /* ignore */ }
+                        setXlsxLoadingId(null);
+                      }}
+                      disabled={xlsxLoadingId === map.id}
+                      className="text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-green-200 bg-green-50 hover:bg-green-100 text-green-700 disabled:opacity-50 transition flex-shrink-0"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                      {xlsxLoadingId === map.id ? "Preparing…" : "Download XLSX"}
+                    </button>
                   </div>
                 </div>
               );

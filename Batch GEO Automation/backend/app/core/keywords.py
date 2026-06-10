@@ -20,7 +20,11 @@ def generate_keyword_titles(services, geo_modifiers, landmarks,
     rng = random.Random(seed)
     rng.shuffle(unique)
     chosen = list(unique)
-    while len(chosen) < count:                  # pool exhausted -> allow repeats
-        chosen.append(rng.choice(unique))
+    # Pool exhausted — cycle through unique titles with a numeric suffix to avoid duplicates
+    repeat_counter: dict[str, int] = {}
+    while len(chosen) < count:
+        base = unique[len(chosen) % len(unique)]
+        repeat_counter[base] = repeat_counter.get(base, 1) + 1
+        chosen.append(f"{base} {repeat_counter[base]}")
     chosen = chosen[:count]
     return [f"{t} {business_name}".strip() for t in chosen]
