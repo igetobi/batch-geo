@@ -7,6 +7,7 @@ import io
 import json
 import re
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from collections import defaultdict
@@ -14,9 +15,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated, Any
 
-import openpyxl
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request, status
-from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.auth import issue_token, require_token, verify_login
@@ -185,37 +184,6 @@ def _extract_cid(value: str) -> str | None:
     return m.group(1) if m else None
 
 
-class DownloadXlsxRequest(BaseModel):
-    csv_text: str
-    filename: str = "batchgeo-map"
-
-
-@app.post("/api/download-xlsx")
-def download_xlsx(
-    body: DownloadXlsxRequest,
-    _user: Annotated[str, Depends(require_token)],
-) -> StreamingResponse:
-    """Convert a CSV string to an XLSX file and return it as a download."""
-    reader = csv.reader(io.StringIO(body.csv_text))
-    rows = list(reader)
-
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    for row in rows:
-        ws.append(row)
-
-    buf = io.BytesIO()
-    wb.save(buf)
-    buf.seek(0)
-
-    safe_name = re.sub(r"[^\w\-]", "-", body.filename) or "batchgeo-map"
-    return StreamingResponse(
-        buf,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f'attachment; filename="{safe_name}.xlsx"'},
-    )
-
-
 @app.post("/api/fetch-citations", response_model=FetchCitationsResponse)
 def fetch_citations(
     body: FetchCitationsRequest,
@@ -266,7 +234,7 @@ def fetch_citations(
             # Row 5 is already a citation URL
             citations_start = 4
 
-    citations = [r for r in rows[citations_start:] if r.startswith("http")][:50]
+    citations = [r for r in rows[citations_start:] if r.startswith("http")]
 
     return FetchCitationsResponse(gmb_cid=gmb_cid, citations=citations)
 
@@ -282,6 +250,28 @@ class FetchGmbImagesResponse(BaseModel):
     image_urls: list[str]
 
 
+def _places_request(url: str, api_key: str, data: bytes | None = None, extra_headers: dict | None = None) -> dict:
+    """Make a Places API (New) request and return parsed JSON. Raises HTTPException with Google's error detail on failure."""
+    headers: dict[str, str] = {"X-Goog-Api-Key": api_key}
+    if data:
+        headers["Content-Type"] = "application/json"
+    if extra_headers:
+        headers.update(extra_headers)
+    req = urllib.request.Request(url, data=data, headers=headers, method="POST" if data else "GET")
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return json.loads(resp.read())
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")
+        try:
+            detail = json.loads(body).get("error", {}).get("message", body)
+        except Exception:
+            detail = body
+        raise HTTPException(status_code=502, detail=f"Google Places API error: {detail}") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Places request failed: {exc}") from exc
+
+
 @app.post("/api/fetch-gmb-images", response_model=FetchGmbImagesResponse)
 def fetch_gmb_images(
     body: FetchGmbImagesRequest,
@@ -292,56 +282,38 @@ def fetch_gmb_images(
     if not api_key:
         raise HTTPException(status_code=503, detail="Google Places API key not configured")
 
-    # Step 1: Text search — fetch up to 10 candidates with their googleMapsUri so
-    # we can find the one whose CID matches exactly.
-    search_payload = json.dumps({"textQuery": f"{body.business_name} {body.city} {body.state}"})
-    search_req = urllib.request.Request(
+    # Step 1: Text search — fetch candidates with googleMapsUri to match by CID
+    search_payload = json.dumps({"textQuery": f"{body.business_name} {body.city} {body.state}"}).encode()
+    search_data = _places_request(
         "https://places.googleapis.com/v1/places:searchText",
-        data=search_payload.encode(),
-        headers={
-            "Content-Type": "application/json",
-            "X-Goog-Api-Key": api_key,
-            "X-Goog-FieldMask": "places.id,places.googleMapsUri",
-        },
-        method="POST",
+        api_key,
+        data=search_payload,
+        extra_headers={"X-Goog-FieldMask": "places.id,places.googleMapsUri"},
     )
-    try:
-        with urllib.request.urlopen(search_req, timeout=10) as resp:
-            search_data = json.loads(resp.read())
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Places search failed: {exc}") from exc
 
     places = search_data.get("places", [])
     if not places:
         raise HTTPException(status_code=404, detail="Business not found in Google Places")
 
-    # Match the result whose googleMapsUri contains the exact CID
+    # Match result whose googleMapsUri contains the exact CID
     place_id: str | None = None
     for p in places:
-        uri = p.get("googleMapsUri", "")
-        if f"cid={body.gmb_cid}" in uri:
+        if f"cid={body.gmb_cid}" in p.get("googleMapsUri", ""):
             place_id = p["id"]
             break
 
     if not place_id:
         raise HTTPException(
             status_code=404,
-            detail="Could not match GMB CID to a Places result. Make sure the CID is correct.",
+            detail="GMB CID not matched in Google Places results. Verify the CID is correct.",
         )
 
     # Step 2: Fetch photos for the matched place
-    photos_req = urllib.request.Request(
+    place_data = _places_request(
         f"https://places.googleapis.com/v1/places/{place_id}",
-        headers={
-            "X-Goog-Api-Key": api_key,
-            "X-Goog-FieldMask": "photos",
-        },
+        api_key,
+        extra_headers={"X-Goog-FieldMask": "photos"},
     )
-    try:
-        with urllib.request.urlopen(photos_req, timeout=10) as resp:
-            place_data = json.loads(resp.read())
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Places detail failed: {exc}") from exc
 
     photos = place_data.get("photos", [])[:5]
     image_urls = [
