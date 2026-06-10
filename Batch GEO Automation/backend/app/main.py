@@ -275,6 +275,7 @@ class FetchGmbImagesRequest(BaseModel):
     business_name: str
     city: str
     state: str
+    gmb_cid: str
 
 
 class FetchGmbImagesResponse(BaseModel):
@@ -286,12 +287,13 @@ def fetch_gmb_images(
     body: FetchGmbImagesRequest,
     _user: Annotated[str, Depends(require_token)],
 ) -> FetchGmbImagesResponse:
-    """Use Google Places API (New) to fetch up to 5 photos for a business."""
+    """Fetch up to 5 GMB photos using Places API (New), matched exactly by CID."""
     api_key = settings.google_places_api_key
     if not api_key:
         raise HTTPException(status_code=503, detail="Google Places API key not configured")
 
-    # Step 1: Text search to find the place ID
+    # Step 1: Text search — fetch up to 10 candidates with their googleMapsUri so
+    # we can find the one whose CID matches exactly.
     search_payload = json.dumps({"textQuery": f"{body.business_name} {body.city} {body.state}"})
     search_req = urllib.request.Request(
         "https://places.googleapis.com/v1/places:searchText",
@@ -299,7 +301,7 @@ def fetch_gmb_images(
         headers={
             "Content-Type": "application/json",
             "X-Goog-Api-Key": api_key,
-            "X-Goog-FieldMask": "places.id",
+            "X-Goog-FieldMask": "places.id,places.googleMapsUri",
         },
         method="POST",
     )
@@ -313,9 +315,21 @@ def fetch_gmb_images(
     if not places:
         raise HTTPException(status_code=404, detail="Business not found in Google Places")
 
-    place_id = places[0]["id"]
+    # Match the result whose googleMapsUri contains the exact CID
+    place_id: str | None = None
+    for p in places:
+        uri = p.get("googleMapsUri", "")
+        if f"cid={body.gmb_cid}" in uri:
+            place_id = p["id"]
+            break
 
-    # Step 2: Fetch photos for the place
+    if not place_id:
+        raise HTTPException(
+            status_code=404,
+            detail="Could not match GMB CID to a Places result. Make sure the CID is correct.",
+        )
+
+    # Step 2: Fetch photos for the matched place
     photos_req = urllib.request.Request(
         f"https://places.googleapis.com/v1/places/{place_id}",
         headers={

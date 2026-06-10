@@ -13,7 +13,7 @@ HEADER = [
 ]
 
 # Order in which iframe types are cycled across pins (one per pin, then repeats)
-_IFRAME_ORDER = ["youtube", "my_maps", "sheets", "docs", "pearltrees"]
+_IFRAME_ORDER = ["website", "gmb", "my_maps", "sheets", "docs", "pearltrees"]
 
 
 def _maps_url(client: ClientProfile, pin: GeneratedPin) -> str:

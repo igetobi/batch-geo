@@ -210,11 +210,12 @@ export interface FetchGmbImagesResult {
 export async function fetchGmbImages(
   business_name: string,
   city: string,
-  state: string
+  state: string,
+  gmb_cid: string
 ): Promise<FetchGmbImagesResult> {
   return apiFetch<FetchGmbImagesResult>("/api/fetch-gmb-images", {
     method: "POST",
-    body: JSON.stringify({ business_name, city, state }),
+    body: JSON.stringify({ business_name, city, state, gmb_cid }),
   });
 }
 

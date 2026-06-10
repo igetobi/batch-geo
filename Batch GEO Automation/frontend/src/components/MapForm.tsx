@@ -106,7 +106,8 @@ export default function MapForm({ onResult, onShowRecent }: Props) {
   const [imageUrls, setImageUrls] = useState<string[]>(["", "", "", "", ""]);
   const [socialUrlsText, setSocialUrlsText] = useState("");
   const [videoIframes, setVideoIframes] = useState<Record<string, string>>({
-    youtube: "",
+    website: "",
+    gmb: "",
     my_maps: "",
     sheets: "",
     docs: "",
@@ -129,12 +130,12 @@ export default function MapForm({ onResult, onShowRecent }: Props) {
   const [gmbImageFetchSuccess, setGmbImageFetchSuccess] = useState(false);
 
   async function handleFetchGmbImages() {
-    if (!businessName.trim() || !city.trim() || !state.trim()) return;
+    if (!businessName.trim() || !city.trim() || !state.trim() || !gmbCid.trim()) return;
     setFetchingGmbImages(true);
     setGmbImageFetchError(null);
     setGmbImageFetchSuccess(false);
     try {
-      const result = await fetchGmbImages(businessName.trim(), city.trim(), state.trim());
+      const result = await fetchGmbImages(businessName.trim(), city.trim(), state.trim(), gmbCid.trim());
       if (result.image_urls.length > 0) {
         const next = ["", "", "", "", ""];
         result.image_urls.forEach((url, i) => { next[i] = url; });
@@ -419,12 +420,12 @@ export default function MapForm({ onResult, onShowRecent }: Props) {
               <button
                 type="button"
                 onClick={handleFetchGmbImages}
-                disabled={fetchingGmbImages || !businessName.trim() || !city.trim() || !state.trim()}
+                disabled={fetchingGmbImages || !businessName.trim() || !city.trim() || !state.trim() || !gmbCid.trim()}
                 className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-sm font-medium transition whitespace-nowrap"
               >
                 {fetchingGmbImages ? "Fetching…" : "Auto-fetch from GMB"}
               </button>
-              <span className="text-xs text-slate-400">Business Name, City, and State must be filled in first.</span>
+              <span className="text-xs text-slate-400">Requires Business Name, City, State, and GMB CID.</span>
             </div>
             {gmbImageFetchError && (
               <p className="text-xs text-red-600 font-medium">{gmbImageFetchError}</p>
@@ -516,7 +517,8 @@ export default function MapForm({ onResult, onShowRecent }: Props) {
             </p>
             {(
               [
-                ["youtube", "YouTube Embed"],
+                ["website", "Website Embed"],
+                ["gmb", "Google My Business Embed"],
                 ["my_maps", "Google My Maps Embed"],
                 ["sheets", "Google Sheets Embed"],
                 ["docs", "Google Docs Embed"],
