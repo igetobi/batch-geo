@@ -203,6 +203,21 @@ export async function listMaps(): Promise<SavedMap[]> {
   return apiFetch<SavedMap[]>("/api/maps");
 }
 
+export interface FetchGmbImagesResult {
+  image_urls: string[];
+}
+
+export async function fetchGmbImages(
+  business_name: string,
+  city: string,
+  state: string
+): Promise<FetchGmbImagesResult> {
+  return apiFetch<FetchGmbImagesResult>("/api/fetch-gmb-images", {
+    method: "POST",
+    body: JSON.stringify({ business_name, city, state }),
+  });
+}
+
 export interface FetchCitationsResult {
   gmb_cid: string | null;
   citations: string[];

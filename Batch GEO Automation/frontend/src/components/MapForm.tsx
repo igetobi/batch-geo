@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import type { MapRequest, MapResult } from "../api";
-import { fetchCitationsFromSheet, generateMap } from "../api";
+import { fetchCitationsFromSheet, fetchGmbImages, generateMap } from "../api";
 
 // ---------------------------------------------------------------------------
 // Niche presets
@@ -122,6 +122,33 @@ export default function MapForm({ onResult, onShowRecent }: Props) {
   const [mapTitle, setMapTitle] = useState("");
   const [pinCount, setPinCount] = useState(50);
   const [seed, setSeed] = useState("");
+
+  // GMB image auto-fetch
+  const [fetchingGmbImages, setFetchingGmbImages] = useState(false);
+  const [gmbImageFetchError, setGmbImageFetchError] = useState<string | null>(null);
+  const [gmbImageFetchSuccess, setGmbImageFetchSuccess] = useState(false);
+
+  async function handleFetchGmbImages() {
+    if (!businessName.trim() || !city.trim() || !state.trim()) return;
+    setFetchingGmbImages(true);
+    setGmbImageFetchError(null);
+    setGmbImageFetchSuccess(false);
+    try {
+      const result = await fetchGmbImages(businessName.trim(), city.trim(), state.trim());
+      if (result.image_urls.length > 0) {
+        const next = ["", "", "", "", ""];
+        result.image_urls.forEach((url, i) => { next[i] = url; });
+        setImageUrls(next);
+        setGmbImageFetchSuccess(true);
+      } else {
+        setGmbImageFetchError("No photos found for this business in Google Places.");
+      }
+    } catch (err) {
+      setGmbImageFetchError(err instanceof Error ? err.message : "Failed to fetch images");
+    } finally {
+      setFetchingGmbImages(false);
+    }
+  }
 
   // Citation sheet import
   const [citationSheetUrl, setCitationSheetUrl] = useState("");
@@ -386,8 +413,27 @@ export default function MapForm({ onResult, onShowRecent }: Props) {
           {/* ── Section: GMB Images ── */}
           <Section title="GMB Image URLs (optional)">
             <p className="text-xs text-slate-500 -mt-1">
-              Paste up to 5 Google My Business photo URLs. The app will cycle them across all pins in the Image column.
+              Paste up to 5 Google My Business photo URLs, or auto-fetch them from Google Places using the business name and city above.
             </p>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleFetchGmbImages}
+                disabled={fetchingGmbImages || !businessName.trim() || !city.trim() || !state.trim()}
+                className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-sm font-medium transition whitespace-nowrap"
+              >
+                {fetchingGmbImages ? "Fetching…" : "Auto-fetch from GMB"}
+              </button>
+              <span className="text-xs text-slate-400">Business Name, City, and State must be filled in first.</span>
+            </div>
+            {gmbImageFetchError && (
+              <p className="text-xs text-red-600 font-medium">{gmbImageFetchError}</p>
+            )}
+            {gmbImageFetchSuccess && (
+              <p className="text-xs text-green-600 font-medium">
+                GMB photos fetched successfully — {imageUrls.filter(u => u).length} image(s) auto-filled below.
+              </p>
+            )}
             {imageUrls.map((url, i) => (
               <Field key={i} label={`Image ${i + 1}`}>
                 <input

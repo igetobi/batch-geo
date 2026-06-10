@@ -271,6 +271,74 @@ def fetch_citations(
     return FetchCitationsResponse(gmb_cid=gmb_cid, citations=citations)
 
 
+class FetchGmbImagesRequest(BaseModel):
+    business_name: str
+    city: str
+    state: str
+
+
+class FetchGmbImagesResponse(BaseModel):
+    image_urls: list[str]
+
+
+@app.post("/api/fetch-gmb-images", response_model=FetchGmbImagesResponse)
+def fetch_gmb_images(
+    body: FetchGmbImagesRequest,
+    _user: Annotated[str, Depends(require_token)],
+) -> FetchGmbImagesResponse:
+    """Use Google Places API (New) to fetch up to 5 photos for a business."""
+    api_key = settings.google_places_api_key
+    if not api_key:
+        raise HTTPException(status_code=503, detail="Google Places API key not configured")
+
+    # Step 1: Text search to find the place ID
+    search_payload = json.dumps({"textQuery": f"{body.business_name} {body.city} {body.state}"})
+    search_req = urllib.request.Request(
+        "https://places.googleapis.com/v1/places:searchText",
+        data=search_payload.encode(),
+        headers={
+            "Content-Type": "application/json",
+            "X-Goog-Api-Key": api_key,
+            "X-Goog-FieldMask": "places.id",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(search_req, timeout=10) as resp:
+            search_data = json.loads(resp.read())
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Places search failed: {exc}") from exc
+
+    places = search_data.get("places", [])
+    if not places:
+        raise HTTPException(status_code=404, detail="Business not found in Google Places")
+
+    place_id = places[0]["id"]
+
+    # Step 2: Fetch photos for the place
+    photos_req = urllib.request.Request(
+        f"https://places.googleapis.com/v1/places/{place_id}",
+        headers={
+            "X-Goog-Api-Key": api_key,
+            "X-Goog-FieldMask": "photos",
+        },
+    )
+    try:
+        with urllib.request.urlopen(photos_req, timeout=10) as resp:
+            place_data = json.loads(resp.read())
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Places detail failed: {exc}") from exc
+
+    photos = place_data.get("photos", [])[:5]
+    image_urls = [
+        f"https://places.googleapis.com/v1/{p['name']}/media?maxHeightPx=1200&key={api_key}"
+        for p in photos
+        if p.get("name")
+    ]
+
+    return FetchGmbImagesResponse(image_urls=image_urls)
+
+
 @app.get("/api/maps")
 def list_maps(
     storage: Annotated[Storage, Depends(get_storage)],

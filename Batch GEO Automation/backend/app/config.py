@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     # Feature flag: set AUTH_ENABLED=true to require the team login.
     # Defaults to False (open access — no login required).
     auth_enabled: bool = False
+    google_places_api_key: str = ""
 
 
 settings = Settings()
