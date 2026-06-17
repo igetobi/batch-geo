@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import csv
 import io
-import urllib.parse
 
 from app.models import ClientProfile, GeneratedPin
 
@@ -16,21 +15,11 @@ HEADER = [
 _IFRAME_ORDER = ["website", "gmb", "my_maps", "sheets", "docs", "pearltrees"]
 
 
-def _maps_url(client: ClientProfile, pin: GeneratedPin) -> str:
-    """Build a Google Maps search URL for this pin.
-
-    Format: google.com/maps/search/{Brand}+{keyword}+{city}/@{lat},{lon}z?cid={CID}
-    Falls back to the client website when no GMB CID is provided.
-    """
-    if not client.gmb_cid:
-        return str(client.website)
-    query = urllib.parse.quote_plus(
-        f"{client.business_name} {pin.keyword_title} {client.city}"
-    )
-    return (
-        f"https://www.google.com/maps/search/{query}"
-        f"/@{pin.latitude},{pin.longitude}z?cid={client.gmb_cid}"
-    )
+def _pin_url(client: ClientProfile, index: int) -> str:
+    """Return the URL for this pin — citation URL cycled per pin, falls back to website."""
+    if client.social_urls:
+        return client.social_urls[index % len(client.social_urls)]
+    return str(client.website)
 
 
 def _image(client: ClientProfile, index: int) -> str:
@@ -38,13 +27,6 @@ def _image(client: ClientProfile, index: int) -> str:
     if client.image_urls:
         return client.image_urls[index % len(client.image_urls)]
     return str(client.logo_url) if client.logo_url else ""
-
-
-def _social(client: ClientProfile, index: int) -> str:
-    """Return the social/citation URL for this pin."""
-    if client.social_urls:
-        return client.social_urls[index % len(client.social_urls)]
-    return str(client.social_url) if client.social_url else ""
 
 
 def _build_iframe_cycle(client: ClientProfile) -> list[str]:
@@ -65,7 +47,6 @@ def _build_iframe_cycle(client: ClientProfile) -> list[str]:
 
 
 def _video(iframe_cycle: list[str], index: int) -> str:
-    """Return the iframe for this pin (one per pin, cycling through the list)."""
     if not iframe_cycle:
         return ""
     return iframe_cycle[index % len(iframe_cycle)]
@@ -89,13 +70,13 @@ def build_csv(pins: list[GeneratedPin], client: ClientProfile) -> str:
             pin.keyword_title,              # Name
             client.phone,                   # Phone Number
             "",                             # Group
-            _maps_url(client, pin),         # URL  ← Google Maps search URL
+            _pin_url(client, i),            # URL ← citation URL cycled per pin
             str(client.email),              # Email
-            _image(client, i),              # Image ← cycled GMB image
-            _social(client, i),             # Social ← per-pin citation URL
+            _image(client, i),              # Image ← cycled optimized image
+            _pin_url(client, i),            # Social ← same citation URL
             pin.latitude,                   # Latitude
             pin.longitude,                  # Longitude
-            _video(iframe_cycle, i),        # Video ← cycled one iframe per pin
+            _video(iframe_cycle, i),        # Video ← one iframe per pin cycled
         ]
         writer.writerow(row)
 
