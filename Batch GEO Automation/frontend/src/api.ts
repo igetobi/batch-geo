@@ -154,7 +154,8 @@ async function apiFetch<T>(
     let detail = `HTTP ${response.status}`;
     try {
       const body = await response.json();
-      detail = body?.detail ?? detail;
+      const raw = body?.detail ?? body;
+      detail = typeof raw === "string" ? raw : JSON.stringify(raw);
     } catch {
       // ignore parse error
     }
