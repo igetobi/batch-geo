@@ -515,7 +515,7 @@ export default function MapForm({ onResult, onShowRecent }: Props) {
           <Section title="Social Citation URLs (optional)">
             <Field
               label="Citation URLs"
-              hint="Paste one URL per line — up to 50. Each pin gets one citation URL in the Social column (cycled if fewer than pin count)."
+              hint="Paste one URL per line — up to 500. Each pin gets one citation URL in the Social column (cycled if fewer than pin count)."
             >
               <textarea
                 rows={6}
@@ -525,7 +525,7 @@ export default function MapForm({ onResult, onShowRecent }: Props) {
                 className={`${inputCls} resize-none font-mono text-xs`}
               />
               <p className="mt-1.5 text-xs text-slate-400">
-                {socialUrlsText.split("\n").filter((l) => l.trim()).length} / 50 URLs entered
+                {socialUrlsText.split("\n").filter((l) => l.trim()).length} URLs entered
               </p>
             </Field>
           </Section>
