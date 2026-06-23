@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { addNote, listNotes, deleteNote, hasToken, Note } from "../api";
+import { addNote, listNotes, deleteNote, hasToken } from "../api";
+import type { Note } from "../api";
 
 export default function NotesPanel() {
   const isAdmin = hasToken();
