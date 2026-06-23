@@ -458,10 +458,26 @@ export default function MapForm({ onResult, onShowRecent }: Props) {
 
           {/* ── Section: Citation Sheet Import ── */}
           <Section title="Import Citations from Google Sheet">
-            <p className="text-xs text-slate-500 -mt-1">
-              Paste the link to the client's Google Sheet. The app will pull the citation URLs and GMB CID automatically.
-              The sheet must be shared with "Anyone with the link can view."
-            </p>
+            <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 space-y-1.5 -mt-1">
+              <p className="text-xs font-semibold text-blue-800">How to get the citation sheet URL:</p>
+              <ol className="text-xs text-blue-700 space-y-1 list-decimal list-inside">
+                <li>
+                  Open the{" "}
+                  <a
+                    href="https://docs.google.com/spreadsheets/d/1Kad42Ix5RNdflRWj7DLvgBZSMR8AIotwWNXnU6dYHuY/edit"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline font-medium"
+                  >
+                    Master GMB &amp; Citations Sheet
+                  </a>
+                </li>
+                <li>Find the client's row and click their individual citation sheet link</li>
+                <li>In their sheet, go to <strong>File → Make a copy</strong></li>
+                <li>In the copy, click <strong>Share</strong> → change to <strong>"Anyone with the link can view"</strong></li>
+                <li>Copy that link and paste it below</li>
+              </ol>
+            </div>
             <Field label="Google Sheet URL">
               <div className="flex gap-2">
                 <input
