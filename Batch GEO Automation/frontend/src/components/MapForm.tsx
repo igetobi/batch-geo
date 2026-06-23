@@ -305,7 +305,7 @@ export default function MapForm({ onResult, onShowRecent }: Props) {
       const result = await generateMap(request);
       onResult(result, request);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Generation failed");
+      setError(err instanceof Error ? err.message : typeof err === "string" ? err : JSON.stringify(err));
     } finally {
       setLoading(false);
     }
