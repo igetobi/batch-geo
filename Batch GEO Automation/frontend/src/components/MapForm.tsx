@@ -272,7 +272,8 @@ export default function MapForm({ onResult, onShowRecent }: Props) {
     const parsedSocialUrls = socialUrlsText
       .split("\n")
       .map((l) => l.trim())
-      .filter(Boolean);
+      .filter(Boolean)
+      .slice(0, 50);
     const parsedVideoIframes = Object.fromEntries(
       Object.entries(videoIframes).filter(([, v]) => v.trim())
     );
@@ -525,7 +526,7 @@ export default function MapForm({ onResult, onShowRecent }: Props) {
                 className={`${inputCls} resize-none font-mono text-xs`}
               />
               <p className="mt-1.5 text-xs text-slate-400">
-                {socialUrlsText.split("\n").filter((l) => l.trim()).length} URLs entered
+                {socialUrlsText.split("\n").filter((l) => l.trim()).length} URLs entered — first 50 will be used
               </p>
             </Field>
           </Section>
