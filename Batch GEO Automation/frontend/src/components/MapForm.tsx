@@ -540,6 +540,60 @@ export default function MapForm({ onResult, onShowRecent }: Props) {
                 />
               </Field>
             ))}
+            {customEmbedKeys.map((key) => (
+              <Field key={key} label="">
+                <div className="flex gap-2 mb-1.5">
+                  <input
+                    type="text"
+                    value={customEmbedLabels[key] ?? ""}
+                    onChange={(e) =>
+                      setCustomEmbedLabels((prev) => ({ ...prev, [key]: e.target.value }))
+                    }
+                    placeholder="Custom embed label"
+                    className={`${inputCls} flex-1`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomEmbedKeys((prev) => prev.filter((k) => k !== key));
+                      setCustomEmbedLabels((prev) => {
+                        const next = { ...prev };
+                        delete next[key];
+                        return next;
+                      });
+                      setVideoIframes((prev) => {
+                        const next = { ...prev };
+                        delete next[key];
+                        return next;
+                      });
+                    }}
+                    className="shrink-0 px-2 py-1 text-xs font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors"
+                  >
+                    × Remove
+                  </button>
+                </div>
+                <textarea
+                  rows={2}
+                  value={videoIframes[key] ?? ""}
+                  onChange={(e) =>
+                    setVideoIframes((prev) => ({ ...prev, [key]: e.target.value }))
+                  }
+                  placeholder={`<iframe src="..." ...></iframe>`}
+                  className={`${inputCls} resize-none font-mono text-xs`}
+                />
+              </Field>
+            ))}
+            <button
+              type="button"
+              onClick={() => {
+                const key = `custom_${Date.now()}`;
+                setCustomEmbedKeys((prev) => [...prev, key]);
+                setCustomEmbedLabels((prev) => ({ ...prev, [key]: "" }));
+              }}
+              className={chipBtnCls}
+            >
+              + Add Custom Embed
+            </button>
           </Section>
 
           {/* ── Section: Services ── */}
