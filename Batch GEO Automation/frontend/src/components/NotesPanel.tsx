@@ -9,6 +9,7 @@ export default function NotesPanel() {
   const [submitted, setSubmitted] = useState(false);
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isAdmin) loadNotes();
@@ -26,10 +27,15 @@ export default function NotesPanel() {
 
   async function handleSubmit() {
     if (!content.trim()) return;
-    await addNote(content, author);
-    setContent("");
-    setSubmitted(true);
-    setTimeout(() => setSubmitted(false), 4000);
+    setSubmitError(null);
+    try {
+      await addNote(content, author);
+      setContent("");
+      setSubmitted(true);
+      setTimeout(() => setSubmitted(false), 4000);
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "Failed to send note. Please try again.");
+    }
   }
 
   async function handleDelete(id: string) {
@@ -67,6 +73,9 @@ export default function NotesPanel() {
               >
                 Leave Note
               </button>
+              {submitError && (
+                <p className="text-xs text-red-600 font-medium">{submitError}</p>
+              )}
             </>
           )}
         </div>
