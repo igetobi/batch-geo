@@ -267,6 +267,28 @@ export async function downloadXlsx(csvText: string, filename: string): Promise<v
   URL.revokeObjectURL(url);
 }
 
+export interface Note {
+  id: string;
+  content: string;
+  author: string;
+  created_at: string;
+}
+
+export async function addNote(content: string, author = "Kit"): Promise<{ id: string }> {
+  return apiFetch<{ id: string }>("/api/notes", {
+    method: "POST",
+    body: JSON.stringify({ content, author }),
+  });
+}
+
+export async function listNotes(): Promise<Note[]> {
+  return apiFetch<Note[]>("/api/notes");
+}
+
+export async function deleteNote(noteId: string): Promise<void> {
+  await apiFetch<void>(`/api/notes/${noteId}`, { method: "DELETE" });
+}
+
 export function pollJobUntilDone(
   jobId: string,
   onUpdate: (status: JobStatus) => void,

@@ -114,6 +114,10 @@ export default function MapForm({ onResult, onShowRecent }: Props) {
     pearltrees: "",
   });
 
+  // Custom embed slots
+  const [customEmbedKeys, setCustomEmbedKeys] = useState<string[]>([]);
+  const [customEmbedLabels, setCustomEmbedLabels] = useState<Record<string, string>>({});
+
   // Map fields
   const [niche, setNiche] = useState("");
   const [services, setServices] = useState<string[]>([]);

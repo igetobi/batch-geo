@@ -5,6 +5,7 @@ import MapForm from "./components/MapForm";
 import MapPreview from "./components/MapPreview";
 import ResultPanel from "./components/ResultPanel";
 import RecentMaps from "./components/RecentMaps";
+import NotesPanel from "./components/NotesPanel";
 
 // ---------------------------------------------------------------------------
 // Session persistence — item 1
@@ -212,7 +213,12 @@ export default function App() {
 
       {/* Screens */}
       {screen.id === "form" && (
-        <MapForm onResult={handleGenerated} onShowRecent={handleShowRecent} />
+        <>
+          <MapForm onResult={handleGenerated} onShowRecent={handleShowRecent} />
+          <div className="max-w-4xl mx-auto px-4 pb-8">
+            <NotesPanel />
+          </div>
+        </>
       )}
       {screen.id === "preview" && (
         <MapPreview

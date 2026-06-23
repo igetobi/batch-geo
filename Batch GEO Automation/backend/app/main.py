@@ -331,3 +331,38 @@ def list_maps(
     _user: Annotated[str, Depends(require_token)],
 ) -> list[dict[str, Any]]:
     return storage.list_maps()
+
+
+# ---------------------------------------------------------------------------
+# Notes / Feedback
+# ---------------------------------------------------------------------------
+
+class NoteRequest(BaseModel):
+    content: str
+    author: str = "Kit"
+
+
+@app.post("/api/notes", status_code=201)
+def add_note(
+    body: NoteRequest,
+    storage: Annotated[Storage, Depends(get_storage)],
+) -> dict[str, str]:
+    note_id = storage.add_note(body.content, body.author)
+    return {"id": note_id}
+
+
+@app.get("/api/notes")
+def list_notes(
+    storage: Annotated[Storage, Depends(get_storage)],
+    _user: Annotated[str, Depends(require_token)],
+) -> list[dict[str, Any]]:
+    return storage.list_notes()
+
+
+@app.delete("/api/notes/{note_id}", status_code=204)
+def delete_note(
+    note_id: str,
+    storage: Annotated[Storage, Depends(get_storage)],
+    _user: Annotated[str, Depends(require_token)],
+) -> None:
+    storage.delete_note(note_id)

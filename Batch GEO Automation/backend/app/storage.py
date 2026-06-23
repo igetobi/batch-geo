@@ -51,6 +51,15 @@ CREATE TABLE IF NOT EXISTS jobs (
 )
 """
 
+CREATE_NOTES = """
+CREATE TABLE IF NOT EXISTS notes (
+    id         TEXT PRIMARY KEY,
+    content    TEXT NOT NULL,
+    author     TEXT NOT NULL DEFAULT 'Kit',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+)
+"""
+
 
 class Storage:
     """Thin sqlite3 wrapper.  Pass *db_path* as a ``str`` or ``pathlib.Path``."""
@@ -86,6 +95,7 @@ class Storage:
             conn.execute(CREATE_CLIENTS)
             conn.execute(CREATE_MAPS)
             conn.execute(CREATE_JOBS)
+            conn.execute(CREATE_NOTES)
 
     # ------------------------------------------------------------------
     # Maps
@@ -190,6 +200,30 @@ class Storage:
                 (client_id, name, data),
             )
         return client_id
+
+    # ------------------------------------------------------------------
+    # Notes
+    # ------------------------------------------------------------------
+
+    def add_note(self, content: str, author: str = "Kit") -> str:
+        note_id = str(uuid.uuid4())
+        with self._connect() as conn:
+            conn.execute(
+                "INSERT INTO notes (id, content, author) VALUES (?, ?, ?)",
+                (note_id, content, author),
+            )
+        return note_id
+
+    def list_notes(self) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM notes ORDER BY created_at DESC"
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    def delete_note(self, note_id: str) -> None:
+        with self._connect() as conn:
+            conn.execute("DELETE FROM notes WHERE id = ?", (note_id,))
 
     # ------------------------------------------------------------------
     # Cleanup (no-op — connections are closed per-operation)
