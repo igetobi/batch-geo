@@ -1,15 +1,15 @@
-"""Description generator: Claude API with template fallback."""
+"""Description generator: OpenAI API with template fallback."""
 from __future__ import annotations
 
 import logging
 
-import anthropic
+from openai import OpenAI
 
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-_MODEL = "claude-sonnet-4-6"
+_MODEL = "gpt-4o-mini"
 
 _SYSTEM_PROMPT = (
     "You are an expert local SEO copywriter. "
@@ -20,22 +20,17 @@ _SYSTEM_PROMPT = (
 )
 
 
-def _claude_call(system: str, user: str) -> str:
-    """Thin wrapper around the Anthropic SDK. Returns the text of the first content block."""
-    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-    message = client.messages.create(
+def _openai_call(system: str, user: str) -> str:
+    client = OpenAI(api_key=settings.openai_api_key)
+    response = client.chat.completions.create(
         model=_MODEL,
-        max_tokens=1024,
-        system=[
-            {
-                "type": "text",
-                "text": system,
-                "cache_control": {"type": "ephemeral"},
-            }
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
         ],
-        messages=[{"role": "user", "content": user}],
+        max_tokens=1024,
     )
-    return message.content[0].text
+    return response.choices[0].message.content or ""
 
 
 def _template_description(request) -> str:
@@ -65,8 +60,8 @@ def _template_description(request) -> str:
 
 
 def generate_description(request) -> str:
-    """Generate a keyword-rich description via Claude API, falling back to template."""
-    if not settings.anthropic_api_key:
+    """Generate a keyword-rich description via OpenAI API, falling back to template."""
+    if not settings.openai_api_key:
         return _template_description(request)
 
     client = request.client
@@ -82,7 +77,7 @@ def generate_description(request) -> str:
     )
 
     try:
-        return _claude_call(_SYSTEM_PROMPT, user_prompt)
+        return _openai_call(_SYSTEM_PROMPT, user_prompt)
     except Exception:
-        logger.exception("Claude API call failed; falling back to template description")
+        logger.exception("OpenAI API call failed; falling back to template description")
         return _template_description(request)
