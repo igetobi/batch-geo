@@ -354,7 +354,6 @@ def add_note(
 @app.get("/api/notes")
 def list_notes(
     storage: Annotated[Storage, Depends(get_storage)],
-    _user: Annotated[str, Depends(require_token)],
 ) -> list[dict[str, Any]]:
     return storage.list_notes()
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { Note } from "../api";
 import { listNotes, deleteNote, hasToken } from "../api";
 
+
 interface Props {
   onBack: () => void;
 }
@@ -31,11 +32,6 @@ export default function RecentNotes({ onBack }: Props) {
   const canManage = hasToken();
 
   useEffect(() => {
-    if (!canManage) {
-      setError("Log in to view notes.");
-      setLoading(false);
-      return;
-    }
     let cancelled = false;
     listNotes()
       .then((data) => { if (!cancelled) setNotes(data); })
