@@ -5,6 +5,7 @@ import MapForm from "./components/MapForm";
 import MapPreview from "./components/MapPreview";
 import ResultPanel from "./components/ResultPanel";
 import RecentMaps from "./components/RecentMaps";
+import RecentNotes from "./components/RecentNotes";
 import NotesPanel from "./components/NotesPanel";
 
 // ---------------------------------------------------------------------------
@@ -55,7 +56,8 @@ type Screen =
   | { id: "form" }
   | { id: "preview"; result: MapResult; request: MapRequest }
   | { id: "result"; status: JobStatus }
-  | { id: "recent" };
+  | { id: "recent" }
+  | { id: "notes" };
 
 // Derive initial screen from persisted session
 function deriveInitialScreen(): Screen {
@@ -144,6 +146,10 @@ export default function App() {
     setScreen({ id: "recent" });
   }
 
+  function handleShowNotes() {
+    setScreen({ id: "notes" });
+  }
+
   // Persist the active job id into session so a refresh can resume polling.
   function handlePublishStarted(jobId: string) {
     const session = loadSession();
@@ -188,17 +194,25 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Recent maps nav link */}
-            {screen.id !== "recent" && (
-              <button
-                type="button"
-                onClick={handleShowRecent}
-                className="text-xs text-slate-500 hover:text-indigo-600 transition hidden sm:block"
-              >
-                Recent maps
-              </button>
+            {screen.id !== "recent" && screen.id !== "notes" && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleShowRecent}
+                  className="text-xs text-slate-500 hover:text-indigo-600 transition hidden sm:block"
+                >
+                  Recent maps
+                </button>
+                <button
+                  type="button"
+                  onClick={handleShowNotes}
+                  className="text-xs text-slate-500 hover:text-indigo-600 transition hidden sm:block"
+                >
+                  Notes
+                </button>
+              </>
             )}
-            {screen.id === "recent" && (
+            {(screen.id === "recent" || screen.id === "notes") && (
               <button
                 type="button"
                 onClick={handleBackToForm}
@@ -240,6 +254,9 @@ export default function App() {
       )}
       {screen.id === "recent" && (
         <RecentMaps onBack={handleBackToForm} />
+      )}
+      {screen.id === "notes" && (
+        <RecentNotes onBack={handleBackToForm} />
       )}
     </div>
   );

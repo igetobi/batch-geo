@@ -64,6 +64,13 @@ const NICHE_PRESETS: Record<string, string[]> = {
     "commercial painting",
     "deck staining",
   ],
+  "Junk Removal": [
+    "junk removal",
+    "furniture removal",
+    "appliance removal",
+    "debris removal",
+    "estate cleanout",
+  ],
 };
 
 // ---------------------------------------------------------------------------
@@ -295,8 +302,8 @@ export default function MapForm({ onResult, onShowRecent }: Props) {
       landmarks,
       geo_modifiers: [],
       pin_count: pinCount,
-      map_title: mapTitle || `${businessName} ${city}`,
-      map_slug: slugify(mapTitle || `${businessName} ${city}`),
+      map_title: mapTitle || (businessName.toLowerCase().includes(city.toLowerCase()) ? businessName : `${businessName} ${city}`),
+      map_slug: slugify(mapTitle || (businessName.toLowerCase().includes(city.toLowerCase()) ? businessName : `${businessName} ${city}`)),
       bounding_box: null,
       seed: seed ? parseInt(seed) : null,
     };
